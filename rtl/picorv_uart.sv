@@ -1,12 +1,36 @@
+/* verilator lint_off PINMISSING */
+
+`timescale 1ns/1ps
 module picorv_uart #(
-  parameter ClkFreq = 1200000,
+  parameter ClkFreq = 12000000,
   parameter BaudRate = 115200)
   (input [0:0] clk_i
   ,input [0:0] reset_i
   ,input [0:0] rx_i
   ,output [0:0] tx_o);
 
-  localparam Prescale = (ClkFreq / (BaudRate * 8));
+  wire [31:0] mem_addr, mem_wdata, mem_rdata;
+  wire [3:0] mem_wstrb;
+  wire [0:0] mem_valid, mem_instr, mem_ready;
+  picorv32 #(
+  ) picorv_inst (
+    .clk(clk_i),
+    .resetn(~reset_i),
+    .mem_valid(mem_valid),
+    .mem_instr(mem_instr),
+    .mem_ready(mem_ready),
+    .mem_addr(mem_addr),
+    .mem_wstrb(mem_wstrb),
+    .mem_rdata(mem_rdata)
+  );
 
-  wire [3:0] __unused__ = {clk_i, reset_i, rx_i, tx_o};
+  uart_ram #(
+    .ClkFreq(ClkFreq),
+    .BaudRate(BaudRate)
+  ) ur_inst (
+    .clk_i(clk_i),
+    .reset_i(reset_i),
+    .rx_i(rx_i),
+    .tx_o(tx_o)
+  );
 endmodule
