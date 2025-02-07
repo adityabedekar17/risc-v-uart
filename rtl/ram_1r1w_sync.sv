@@ -9,7 +9,7 @@ module ram_1r1w_sync
   ,output [Width - 1:0] rd_data_o);
 
   logic [Width - 1:0] mem [0:Words - 1];
-
+ //32 bits 4 byte words
   always_ff @(posedge clk_i) begin
     if (wr_en_i[0]) begin
       mem[addr_i][7:0] <= wr_data_i[7:0];
