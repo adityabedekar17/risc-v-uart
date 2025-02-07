@@ -15,6 +15,7 @@ module picorv_uart_runner;
   logic [31:0] ram_rd_data_o;
   logic [3:0] ram_wen;
   logic [0:0] ram_en, addr_in_ram;
+  logic [0:0] ram_ready_q;
   logic trap;
 
 
@@ -28,7 +29,7 @@ module picorv_uart_runner;
   picorv32 #(
 	) uut (
 		.clk         (clk_i        ),
-		.resetn      (reset_i     ),
+		.resetn      (~reset_i     ),
     .trap(trap),
 		.mem_valid   (mem_valid  ),
 		.mem_instr   (mem_instr  ),
@@ -38,6 +39,21 @@ module picorv_uart_runner;
 		.mem_wstrb   (mem_wstrb  ),
 		.mem_rdata   (mem_rdata  )
 	);
+  
+  assign addr_in_ram = ((mem_addr < (4 * RamWords)));
+  assign ram_en = (mem_valid && ~mem_ready && addr_in_ram);
+  assign ram_wen = ram_en ? mem_wstrb : 4'b0;
+
+  // picorv gives address in bytes. Take 2 bits to the left
+  // since this module is for words
+  assign ram_addr = mem_addr[$clog2(RamWords) + 1:2];
+
+  always_ff @(posedge clk_i) begin
+    ram_ready_q <= ram_en;
+  end
+
+  assign mem_rdata = addr_in_ram ? ram_rd_data_o : 32'b0;
+  assign mem_ready = ram_ready_q;
 
   ram_1r1w_sync #(.Width(32),.Words(RamWords))
   tb_ram_inst (.clk_i(clk_i),
