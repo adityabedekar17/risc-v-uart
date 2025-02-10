@@ -46,7 +46,7 @@ module picorv_uart #(
     .rd_valid_i(uart_en),
     .rd_addr_i(mem_addr),
     .rd_data_o(uart_rd_data),
-    .rd_valid_o(uart_rd_ready)
+    .rd_ready_o(uart_rd_ready)
   );
 
   wire [$clog2(RamWords) - 1:0] ram_addr;
