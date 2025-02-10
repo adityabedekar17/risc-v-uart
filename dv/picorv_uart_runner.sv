@@ -26,6 +26,7 @@ module picorv_uart_runner;
       clk_i = !clk_i;
     end
   end
+  /* verilator lint_off PINMISSING */
   picorv32 #(
 	) uut (
 		.clk         (clk_i        ),
@@ -39,6 +40,7 @@ module picorv_uart_runner;
 		.mem_wstrb   (mem_wstrb  ),
 		.mem_rdata   (mem_rdata  )
 	);
+  /* verilator lint_on PINMISSING */
   
   assign addr_in_ram = ((mem_addr < (4 * RamWords)));
   assign ram_en = (mem_valid && ~mem_ready && addr_in_ram);
