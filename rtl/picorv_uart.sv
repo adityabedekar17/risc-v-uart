@@ -27,6 +27,19 @@ module picorv_uart #(
     .mem_rdata(mem_rdata)
   );
 
+`ifdef PRINT_MEM
+  always @(posedge clk_i) begin
+    if (mem_valid && mem_ready) begin
+      if (mem_instr)
+        $display("ifetch 0x%08x: 0x%08x", mem_addr, mem_rdata);
+      else if (|mem_wstrb)
+        $display("write  0x%08x: 0x%08x (wstrb=%b)", mem_addr, mem_wdata, mem_wstrb);
+      else
+        $display("read   0x%08x: 0x%08x", mem_addr, mem_rdata);
+    end
+  end
+`endif
+
   // TODO figure out splitting memory regions for instructions and other
   // in the compiler and picorv. Need to define uart memory regions?
 

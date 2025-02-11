@@ -27,7 +27,7 @@ module uart_ram
   localparam [15:0] Prescale = 16'(ClkFreq / (BaudRate * 8));
 
   typedef enum {
-    Idle, SendAddr, WaitData, RecvData
+    Idle, SendAddr, WaitData, RecvData, Ready
   } uart_state_e;
 
   uart_state_e uart_state_d, uart_state_q;
@@ -38,7 +38,7 @@ module uart_ram
     s_axis_tdata = 8'h00;
 
     s_axis_tvalid = 1'b0;
-    m_axis_tready = 1'b0;
+    m_axis_tready = 1'b1;
     addr_reg_en = 1'b0;
     data_reg_en = 1'b0;
     byte_cnt_up = 1'b0;
@@ -92,11 +92,19 @@ module uart_ram
           data_reg_en = 1'b1;
           byte_cnt_up = 1'b1;
           if (byte_cnt_q == 2'h3) begin
+            uart_state_d = Ready;
+            /*
             uart_state_d = Idle;
             data_ready = 1'b1;
             reg_reset = 1'b1;
+            */
           end
         end
+      end
+      Ready: begin
+        uart_state_d = Idle;
+        data_ready = 1'b1;
+        reg_reset = 1'b1;
       end
       default: begin
         uart_state_d = Idle;
