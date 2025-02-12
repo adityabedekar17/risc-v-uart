@@ -1,14 +1,13 @@
 
 dv/dv_pkg.sv
 
-dv/picorv_uart_tb.sv
-
-// files for uart_sender
-dv/uart_sender.sv
+// for uart_sender
 third_party/alexforencich_uart/rtl/uart.v
 third_party/alexforencich_uart/rtl/uart_rx.v
 third_party/alexforencich_uart/rtl/uart_tx.v
+dv/uart_sender.sv
 
+dv/picorv_uart_tb.sv
 
 --timing
 -j 0

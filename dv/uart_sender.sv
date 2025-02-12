@@ -15,9 +15,7 @@ module uart_sender
   wire [0:0] s_axis_tready, m_axis_tvalid;
 
   /* verilator lint_off PINMISSING */
-  uart #(
-    .DATA_WIDTH(8)
-  ) uart_inst (
+  uart uart_inst (
     .clk(clk_i),
     .rst(reset_i),
     
