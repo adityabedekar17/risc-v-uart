@@ -1,4 +1,4 @@
-
+.venv
 __pycache__
 *obj_dir
 *sim_dir
