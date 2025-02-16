@@ -27,14 +27,15 @@ module uart_ram
   localparam [15:0] Prescale = 16'(ClkFreq / (BaudRate * 8));
 
   typedef enum {
-    Idle, SendAddr, WaitData, RecvData, Ready
+    Idle, SendAddr, WaitData, RecvData
   } uart_state_e;
 
   uart_state_e uart_state_d, uart_state_q;
 
   logic [7:0] s_axis_tdata;
-  logic [0:0] s_axis_tvalid, m_axis_tready, addr_reg_en, data_reg_en, byte_cnt_up, reg_reset, data_ready;
+  logic [0:0] s_axis_tvalid, m_axis_tready, addr_reg_en, data_reg_en, byte_cnt_up, data_ready;
   always_comb begin
+    uart_state_d = uart_state_q;
     s_axis_tdata = 8'h00;
 
     s_axis_tvalid = 1'b0;
@@ -42,10 +43,9 @@ module uart_ram
     addr_reg_en = 1'b0;
     data_reg_en = 1'b0;
     byte_cnt_up = 1'b0;
-    reg_reset = 1'b0;
     data_ready = 1'b0;
 
-    case (uart_state_q) 
+    unique case (uart_state_q) 
       Idle: begin
         if (s_axis_tready & rd_valid_i) begin
           uart_state_d = SendAddr;
@@ -92,19 +92,10 @@ module uart_ram
           data_reg_en = 1'b1;
           byte_cnt_up = 1'b1;
           if (byte_cnt_q == 2'h3) begin
-            uart_state_d = Ready;
-            /*
             uart_state_d = Idle;
             data_ready = 1'b1;
-            reg_reset = 1'b1;
-            */
           end
         end
-      end
-      Ready: begin
-        uart_state_d = Idle;
-        data_ready = 1'b1;
-        reg_reset = 1'b1;
       end
       default: begin
         uart_state_d = Idle;
@@ -129,7 +120,7 @@ module uart_ram
     end
   end
 
-  logic [31:0] data_q;
+  logic [23:0] data_q;
   always_ff @(posedge clk_i) begin
     if (reset_i) begin
       data_q <= '0;
@@ -139,8 +130,6 @@ module uart_ram
       data_q[15:8] <= m_axis_tdata;
     end else if (data_reg_en & (byte_cnt_q == 2'h2)) begin
       data_q[23:16] <= m_axis_tdata;
-    end else if (data_reg_en & (byte_cnt_q == 2'h3)) begin
-      data_q[31:24] <= m_axis_tdata;
     end
   end
 
@@ -153,7 +142,7 @@ module uart_ram
     end
   end
   always_ff @(posedge clk_i) begin
-    if (reset_i | reg_reset) begin
+    if (reset_i) begin
       byte_cnt_q <= '0;
     end else begin
       byte_cnt_q <= byte_cnt_d;
@@ -183,5 +172,5 @@ module uart_ram
   );
 
   assign rd_ready_o = data_ready;
-  assign rd_data_o = data_q;
+  assign rd_data_o = {m_axis_tdata, data_q};
 endmodule
