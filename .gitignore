@@ -5,3 +5,6 @@ __pycache__
 *gls_dir
 *.fst
 build
+
+# binaries from src
+serialram
