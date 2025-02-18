@@ -2,12 +2,18 @@
 
 /* Based on memory control from the cpu, sends and receives bytes from the
  * uart controller program.
- * Currently only able to send a read request.
  * When loading word:
+ *   Sent command byte: 0x77 (r = 0x77)
  *   Send four bytes of address over tx
  *   Wait for response
  *   Four bytes will be sent back
  *   Once the four bytes are received, set the ready signal high for one cycle
+ * When storing word:
+ *   Send command byte: {4'h2, wstrb} (w = 0x72, so the first digit is 2)
+ *   Send four bytes for the address
+ *   Send four bytes for the data
+ *   Wait for response {200 = 0xc8}
+ *   Once the ok repsonse is received, set the ready signal high for one cycle
  */
 `timescale 1ns/1ps
 module uart_ram
@@ -19,51 +25,51 @@ module uart_ram
   ,input [0:0] rx_i
   ,output [0:0] tx_o
 
-  ,input [0:0] rd_valid_i
-  ,input [31:0] rd_addr_i
+  ,input [0:0] mem_valid_i
+  ,input [3:0] mem_wstrb_i
+  ,input [31:0] addr_i
+  ,input [31:0] wr_data_i
   ,output [31:0] rd_data_o
-  ,output [0:0] rd_ready_o);
+  ,output [0:0] ready_o);
 
   localparam [15:0] Prescale = 16'(ClkFreq / (BaudRate * 8));
 
   typedef enum {
-    Idle, SendAddr, WaitData, RecvData
+    Idle, SendAddr, SendData, WaitData, RecvData, WaitAck
   } uart_state_e;
 
   uart_state_e uart_state_d, uart_state_q;
 
   logic [7:0] s_axis_tdata;
-  logic [0:0] s_axis_tvalid, m_axis_tready, addr_reg_en, data_reg_en, byte_cnt_up, data_ready;
+  logic [0:0] s_axis_tvalid, m_axis_tready, data_reg_en, byte_cnt_up, data_ready;
   always_comb begin
     uart_state_d = uart_state_q;
     s_axis_tdata = 8'h00;
 
     s_axis_tvalid = 1'b0;
     m_axis_tready = 1'b1;
-    addr_reg_en = 1'b0;
     data_reg_en = 1'b0;
     byte_cnt_up = 1'b0;
     data_ready = 1'b0;
 
     unique case (uart_state_q) 
       Idle: begin
-        if (s_axis_tready & rd_valid_i) begin
+        if (s_axis_tready & mem_valid_i) begin
           uart_state_d = SendAddr;
-          addr_reg_en = 1'b1;
 
-          // Send the first byte: little endian
+          // Send the command byte for rd or wr
           s_axis_tvalid = 1'b1;
-          s_axis_tdata = rd_addr_i[7:0];
-          byte_cnt_up = 1'b1;
+          s_axis_tdata = (mem_wstrb_i == 4'b0000) ? 8'h77 : {4'h2, mem_wstrb_i};
         end
       end
       // SendAddr: send the memory address one byte at a time. On the cycle
       // the fourth byte is sent, move to the next state.
       SendAddr: begin
         case (byte_cnt_q)
-          2'h1: s_axis_tdata = addr_q[15:8];
-          2'h2: s_axis_tdata = addr_q[23:16];
-          2'h3: s_axis_tdata = addr_q[31:24];
+          2'h0: s_axis_tdata = addr_i[7:0];
+          2'h1: s_axis_tdata = addr_i[15:8];
+          2'h2: s_axis_tdata = addr_i[23:16];
+          2'h3: s_axis_tdata = addr_i[31:24];
           default: s_axis_tdata = '0;
         endcase
         s_axis_tvalid = 1'b1;
@@ -71,7 +77,28 @@ module uart_ram
         if (s_axis_tready) begin
           byte_cnt_up = 1'b1;
           if (byte_cnt_q == 2'h3) begin
-            uart_state_d = WaitData;
+            if (mem_wstrb_i == 4'b0000) begin
+              uart_state_d = WaitData;
+            end else begin
+              uart_state_d = SendData;
+            end
+          end
+        end
+      end
+      SendData: begin
+        case (byte_cnt_q)
+          2'h0: s_axis_tdata = wr_data_i[7:0];
+          2'h1: s_axis_tdata = wr_data_i[15:8];
+          2'h2: s_axis_tdata = wr_data_i[23:16];
+          2'h3: s_axis_tdata = wr_data_i[31:24];
+          default: s_axis_tdata = '0;
+        endcase
+        s_axis_tvalid = 1'b1;
+
+        if (s_axis_tready) begin
+          byte_cnt_up = 1'b1;
+          if (byte_cnt_q == 2'h3) begin
+            uart_state_d = WaitAck;
           end
         end
       end
@@ -97,6 +124,12 @@ module uart_ram
           end
         end
       end
+      WaitAck: begin
+        if (m_axis_tvalid) begin
+          uart_state_d = Idle;
+          data_ready = 1'b1;
+        end
+      end
       default: begin
         uart_state_d = Idle;
       end
@@ -108,15 +141,6 @@ module uart_ram
       uart_state_q <= Idle;
     end else begin
       uart_state_q <= uart_state_d;
-    end
-  end
-
-  logic [31:8] addr_q;
-  always_ff @(posedge clk_i) begin
-    if (reset_i) begin
-      addr_q <= '0;
-    end else if (addr_reg_en) begin
-      addr_q <= rd_addr_i[31:8];
     end
   end
 
@@ -171,6 +195,6 @@ module uart_ram
     .prescale(Prescale)
   );
 
-  assign rd_ready_o = data_ready;
+  assign ready_o = data_ready;
   assign rd_data_o = {m_axis_tdata, data_q};
 endmodule
