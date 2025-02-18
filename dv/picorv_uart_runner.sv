@@ -4,11 +4,9 @@ module picorv_uart_runner;
   parameter ClkFreq = 12000000;
   parameter BaudRate = 115200;
 
-  //localparam realtime ClkPeriod = 1 / ClkFreq;
   initial begin
     clk_i = 0;
     forever begin
-      //#(ClkPeriod / 2);
       #41.667ns;
       clk_i = !clk_i;
     end
@@ -36,8 +34,7 @@ module picorv_uart_runner;
   
   task automatic repeat_mem(input int times);
     repeat (times) begin
-      us_inst.recv_word();
-      us_inst.send_word();
+      us_inst.process_request();
     end
   endtask
 

@@ -37,8 +37,7 @@ module picorv_uart_runner;
   
   task automatic repeat_mem(input int times);
     repeat (times) begin
-      us_inst.recv_word();
-      us_inst.send_word();
+      us_inst.process_request();
     end
   endtask
 

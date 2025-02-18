@@ -52,39 +52,68 @@ module uart_sender
     m_axis_tready = 1'b1;
   end
 
-  logic [31:0] addr;
-  task automatic recv_word();
+  task automatic recv_byte(output logic [7:0] command);
+    while (~m_axis_tvalid) @(posedge clk_i);
+    command = m_axis_tdata;
+    @(posedge clk_i);
+  endtask
+
+  task automatic send_byte(input logic [7:0] response);
+    while (~s_axis_tready) @(posedge clk_i);
+    s_axis_tvalid = 1'b1;
+    s_axis_tdata = response;
+    @(posedge clk_i);
+    s_axis_tvalid = 1'b0;
+  endtask
+
+  task automatic recv_word(output logic [31:0] word);
     for (int i = 0; i < 4; i ++) begin
       while (~m_axis_tvalid) @(posedge clk_i);
       case (i)
-        0: addr[7:0] = m_axis_tdata;
-        1: addr[15:8] = m_axis_tdata;
-        2: addr[23:16] = m_axis_tdata;
-        3: addr[31:24] = m_axis_tdata;
+        0: word[7:0] = m_axis_tdata;
+        1: word[15:8] = m_axis_tdata;
+        2: word[23:16] = m_axis_tdata;
+        3: word[31:24] = m_axis_tdata;
       endcase
       @(posedge clk_i);
     end
     @(posedge clk_i);
-    $display("Received addr 0x%h", addr);
   endtask
 
-  // currently only testing for 8-bit address space, limited by mem
-  logic [7:0] word_addr;
-  task automatic send_word();
-    word_addr = addr[9:2];
-    $display("Instr at 0x%h: %h", word_addr, mem[word_addr]);
+  task automatic send_word(input logic [31:0] word);
     for (int i = 0; i < 4; i ++) begin
       while (~s_axis_tready) @(posedge clk_i);
       s_axis_tvalid = 1'b1;
       case (i)
-        0: s_axis_tdata = mem[word_addr][7:0];
-        1: s_axis_tdata = mem[word_addr][15:8];
-        2: s_axis_tdata = mem[word_addr][23:16];
-        3: s_axis_tdata = mem[word_addr][31:24];
+        0: s_axis_tdata = word[7:0];
+        1: s_axis_tdata = word[15:8];
+        2: s_axis_tdata = word[23:16];
+        3: s_axis_tdata = word[31:24];
       endcase
       @(posedge clk_i);
       s_axis_tvalid = 1'b0;
     end
     @(posedge clk_i);
+  endtask
+
+  logic [31:0] addr, data;
+  logic [7:0] command;
+  task automatic process_request();
+    recv_byte(command);
+    if (command == 8'h77) begin
+      recv_word(addr);
+      data = mem[8'(addr >> 2)];
+      send_word(data);
+      $display("[rd 0x%08h] 0x%08h", addr, data);
+    end else if (command[7:4] == 4'h2) begin
+      recv_word(addr);
+      recv_word(data);
+      mem[8'(addr >> 2)] = data;
+      send_byte(8'hc8);
+      $display("[wr 0x%08h] 0x%08h (wstrb=%b)", addr, data, command[3:0]);
+    end else begin
+      $display("Unexpected command received");
+      $finish();
+    end
   endtask
 endmodule
