@@ -4,9 +4,6 @@
 [submodule "third_party/picorv32"]
 	path = third_party/picorv32
 	url = https://github.com/YosysHQ/picorv32.git
-[submodule "hpdcache"]
-	path = hpdcache
-	url = https://github.com/openhwgroup/cv-hpdcache
 [submodule "third_party/hpdcache"]
 	path = third_party/hpdcache
 	url = https://github.com/openhwgroup/cv-hpdcache
