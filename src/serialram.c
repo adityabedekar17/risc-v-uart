@@ -4,14 +4,65 @@
 
 #include <libserialport.h>
 
-static uint32_t memory[] = {
-  0x3fc00093,
-  0x0000a023,
-  0x0000a103,
-  0x00110113,
-  0x0020a023,
-  0xff5ff06f
+#define WORD_BYTES 4
+
+static uint32_t memory[256];
+void init_mem(void){ 
+  memory[0] = 0x3fc00093;
+  memory[1] = 0x0000a023;
+  memory[2] = 0x0000a103;
+  memory[3] = 0x00110113;
+  memory[4] = 0x0020a023;
+  memory[5] = 0xff5ff06f;
 };
+
+enum sp_return send_byte(struct sp_port *port, uint8_t byte){
+  enum sp_return ret;
+  char buf[1];
+  buf[0] = byte;
+  ret = sp_blocking_write(port, buf, 1, 0);
+  if (ret != 1){
+    printf("Failed to write byte %02x\n", byte);
+    exit(EXIT_FAILURE);
+  }
+  return ret;
+}
+
+enum sp_return send_word(struct sp_port *port, uint32_t word){
+  uint32_t mask;
+  char word_buf[WORD_BYTES];
+  for (size_t i = 0; i < WORD_BYTES; i ++){
+    mask = 0xff << (i * 8);
+    uint8_t cur_byte = (word & mask) >> (i * 8);
+    word_buf[i] = cur_byte;
+  }
+
+  enum sp_return ret;
+  ret = sp_blocking_write(port, word_buf, WORD_BYTES, 0);
+  if (ret != WORD_BYTES){
+    printf("Failed to write word %08x\n", word);
+    exit(EXIT_FAILURE);
+  }
+  return ret;
+}
+
+enum sp_return read_words(struct sp_port *port, size_t num_words, uint32_t word[num_words]){
+  enum sp_return ret;
+  char word_buf[WORD_BYTES * num_words];
+  ret = sp_blocking_read(port, word_buf, WORD_BYTES * num_words, 0);
+  if (ret != WORD_BYTES * num_words) {
+    printf("Failed reading word\n");
+    exit(EXIT_FAILURE);
+  }
+  for(size_t j = 0; j < num_words; j ++) {
+    uint32_t mem_addr = 0;
+    for (size_t i = 0; i < WORD_BYTES; i ++){
+      mem_addr |= ((uint8_t) word_buf[4 * j + i] << (8 * i));
+    }
+    word[j] = mem_addr;
+  }
+  return ret;
+}
 
 int main(int argc, char * argv[]){
 
@@ -20,6 +71,7 @@ int main(int argc, char * argv[]){
     printf("Usage: %s <port> <file>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
+  init_mem();
 
   struct sp_port *port;
   enum sp_return ret;
@@ -36,39 +88,31 @@ int main(int argc, char * argv[]){
     exit(EXIT_FAILURE);
   }
 
-  size_t msg_bytes = 4;
-  char msg_buf[msg_bytes];
-  size_t bytes_read;
-  uint32_t mem_addr = 0;
-  uint32_t mask = 0;
-
+  uint8_t command;
+  uint32_t addr, data;
+  char buf[4];
+  uint32_t words[2];
   while(1){
-    ret = sp_blocking_read(port, msg_buf, msg_bytes, 0);
-    if (ret != msg_bytes){
-      printf("Failed reading %lu bytes\n", msg_bytes);
+    ret = sp_blocking_read(port, buf, 1, 0);
+    command = buf[0];
+    if (ret != 1) {
+      printf("Failed reading command\n");
       exit(EXIT_FAILURE);
     }
-
-    mem_addr = 0;
-    bytes_read = (size_t) ret;
-    for (size_t i = 0; i < bytes_read; i ++){
-      mem_addr |= ((uint8_t) msg_buf[i] << (8 * i));
+    // write
+    if ( (command & 0xf0) == 0x20){
+      read_words(port, 2, words);
+      // TODO wstrb
+      memory[words[0] >> 2] = words[1];
+      printf("[wr %08x] %08x (wstrb=)\n", words[0], words[1]);
+      send_byte(port, 0xc8);
     }
-    printf("Received address: 0x%08x\n", mem_addr);
-
-    printf("Sending bytes: ");
-    for (size_t i = 0; i < msg_bytes; i ++){
-      mask = 0xff << (i * 8);
-      uint8_t cur_byte = (memory[mem_addr >> 2] & mask) >> (i * 8);
-      msg_buf[i] = cur_byte;
-      printf("0x%02x ", cur_byte);
-    }
-    printf("\n");
-
-    ret = sp_blocking_write(port, msg_buf, msg_bytes, 0);
-    if (ret != msg_bytes){
-      printf("Failed to write %lu bytes\n", msg_bytes);
-      exit(EXIT_FAILURE);
+    // read
+    else if (command == 0x77) {
+      read_words(port, 1, &addr);
+      data = memory[addr >> 2];
+      printf("[rd %08x] %08x\n", addr, data);
+      send_word(port, data);
     }
   }
 
