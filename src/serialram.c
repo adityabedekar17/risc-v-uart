@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <time.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <libserialport.h>
 
@@ -66,6 +67,8 @@ int main(int argc, char * argv[]){
   uint8_t byte_ok = 0xc8;
   bool first = true;
   struct timespec start, end;
+  char wstrb[4];
+  char wstrb_init[] = {'0', '0', '0', '0'};
 
   while(memory[255] != 255){
     sp_blocking_read(port, recv_buf, 1, 0);
@@ -78,9 +81,27 @@ int main(int argc, char * argv[]){
       sp_blocking_read(port, recv_buf + 5, 4, 0);
       addr = bytes_to_word_le(&recv_buf[1]);
       data = bytes_to_word_le(&recv_buf[5]);
+      memory[addr >> 2] = 0;
+      if (recv_buf[0] & 0x01){
+        memory[addr >> 2] |= (data & 0x000000ff);
+        wstrb[0] = '1';
+      }
+      if (recv_buf[0] & 0x02){
+        memory[addr >> 2] |= (data & 0x0000ff00);
+        wstrb[1] = '1';
+      }
+      if (recv_buf[0] & 0x04){
+        memory[addr >> 2] |= (data & 0x00ff0000);     
+        wstrb[2] = '1';
+      }
+      if (recv_buf[0] & 0x08){
+        memory[addr >> 2] |= (data & 0xff000000);
+        wstrb[3] = '1';
+      }
       memory[addr >> 2] = data;
+      printf("[wr %08x] %08x (wstrb=%s)\n", addr, data, wstrb);
+      memcpy(wstrb, wstrb_init, 4);
       sp_blocking_write(port, &byte_ok, 1, 0);
-      printf("[wr %08x] %08x (wstrb=)\n", addr, data);
     }
     // read
     else if (recv_buf[0] == 0x77) {
@@ -88,8 +109,8 @@ int main(int argc, char * argv[]){
       addr = bytes_to_word_le(&recv_buf[1]);
       data = memory[addr >> 2];
       word_to_bytes_le(data, send_buf);
-      sp_blocking_write(port, send_buf, 4, 0);
       printf("[rd %08x] %08x\n", addr, data);
+      sp_blocking_write(port, send_buf, 4, 0);
     }
   }
 
