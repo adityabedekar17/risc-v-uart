@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <time.h>
+#include <stdbool.h>
 
 #include <libserialport.h>
 
@@ -16,61 +18,29 @@ void init_mem(void){
   memory[5] = 0xff5ff06f;
 };
 
-enum sp_return send_byte(struct sp_port *port, uint8_t byte){
-  enum sp_return ret;
-  char buf[1];
-  buf[0] = byte;
-  ret = sp_blocking_write(port, buf, 1, 0);
-  if (ret != 1){
-    printf("Failed to write byte %02x\n", byte);
-    exit(EXIT_FAILURE);
-  }
-  return ret;
-}
-
-enum sp_return send_word(struct sp_port *port, uint32_t word){
-  uint32_t mask;
-  char word_buf[WORD_BYTES];
+uint32_t bytes_to_word_le(uint8_t buf[4]){
+  uint32_t word = 0;
   for (size_t i = 0; i < WORD_BYTES; i ++){
-    mask = 0xff << (i * 8);
-    uint8_t cur_byte = (word & mask) >> (i * 8);
-    word_buf[i] = cur_byte;
+    word |= (buf[i] << (i * 8));
   }
-
-  enum sp_return ret;
-  ret = sp_blocking_write(port, word_buf, WORD_BYTES, 0);
-  if (ret != WORD_BYTES){
-    printf("Failed to write word %08x\n", word);
-    exit(EXIT_FAILURE);
-  }
-  return ret;
+  return word;
 }
 
-enum sp_return read_words(struct sp_port *port, size_t num_words, uint32_t word[num_words]){
-  enum sp_return ret;
-  char word_buf[WORD_BYTES * num_words];
-  ret = sp_blocking_read(port, word_buf, WORD_BYTES * num_words, 0);
-  if (ret != WORD_BYTES * num_words) {
-    printf("Failed reading word\n");
-    exit(EXIT_FAILURE);
+void word_to_bytes_le(uint32_t word, uint8_t buf[4]){
+  uint32_t mask = 0;
+  for (size_t i = 0; i < WORD_BYTES; i ++){
+    mask = (0xff << (i * 8));
+    buf[i] = ((word & mask) >> (i * 8));
   }
-  for(size_t j = 0; j < num_words; j ++) {
-    uint32_t mem_addr = 0;
-    for (size_t i = 0; i < WORD_BYTES; i ++){
-      mem_addr |= ((uint8_t) word_buf[4 * j + i] << (8 * i));
-    }
-    word[j] = mem_addr;
-  }
-  return ret;
 }
 
 int main(int argc, char * argv[]){
-
-  if (argc < 3){
+  if (argc < 2){
     // 2nd arg is currently unused, to be used for elf reader
     printf("Usage: %s <port> <file>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
+
   init_mem();
 
   struct sp_port *port;
@@ -88,33 +58,45 @@ int main(int argc, char * argv[]){
     exit(EXIT_FAILURE);
   }
 
-  uint8_t command;
+  // maximum nunber of bytes received is 9: 
+  // {command, addr, data}
+  uint8_t recv_buf[9];
   uint32_t addr, data;
-  char buf[4];
-  uint32_t words[2];
-  while(1){
-    ret = sp_blocking_read(port, buf, 1, 0);
-    command = buf[0];
-    if (ret != 1) {
-      printf("Failed reading command\n");
-      exit(EXIT_FAILURE);
+  uint8_t send_buf[4];
+  uint8_t byte_ok = 0xc8;
+  bool first = true;
+  struct timespec start, end;
+
+  while(memory[255] != 255){
+    sp_blocking_read(port, recv_buf, 1, 0);
+    if (first){
+      clock_gettime(CLOCK_REALTIME, &start);
+      first = false;
     }
-    // write
-    if ( (command & 0xf0) == 0x20){
-      read_words(port, 2, words);
-      // TODO wstrb
-      memory[words[0] >> 2] = words[1];
-      printf("[wr %08x] %08x (wstrb=)\n", words[0], words[1]);
-      send_byte(port, 0xc8);
+    if ((recv_buf[0] & 0xf0) == 0x20){
+      sp_blocking_read(port, recv_buf + 1, 4, 0);
+      sp_blocking_read(port, recv_buf + 5, 4, 0);
+      addr = bytes_to_word_le(&recv_buf[1]);
+      data = bytes_to_word_le(&recv_buf[5]);
+      memory[addr >> 2] = data;
+      sp_blocking_write(port, &byte_ok, 1, 0);
+      printf("[wr %08x] %08x (wstrb=)\n", addr, data);
     }
     // read
-    else if (command == 0x77) {
-      read_words(port, 1, &addr);
+    else if (recv_buf[0] == 0x77) {
+      sp_blocking_read(port, recv_buf + 1, 4, 0);
+      addr = bytes_to_word_le(&recv_buf[1]);
       data = memory[addr >> 2];
+      word_to_bytes_le(data, send_buf);
+      sp_blocking_write(port, send_buf, 4, 0);
       printf("[rd %08x] %08x\n", addr, data);
-      send_word(port, data);
     }
   }
+
+  clock_gettime(CLOCK_REALTIME, &end);
+  double elapsed = end.tv_sec - start.tv_sec;
+  elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+  printf("Completed in %f seconds.\n", elapsed);
 
   sp_close(port);
   sp_free_port(port);
