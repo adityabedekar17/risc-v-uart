@@ -31,13 +31,28 @@ while(mem[255] != 255):
         start = time.time()
     addr = ser.read(4)
     res_com = int.from_bytes(com, byteorder="little", signed=False)
-    print(f"Com: {hex(res_com)}")
     if (res_com & 0xf0) == 0x20:
         data = ser.read(4)
         res_addr = int.from_bytes(addr, byteorder="little", signed=False)
         res_data = int.from_bytes(data, byteorder="little", signed=False)
-        mem[res_addr >> 2] = res_data
-        print(f"[wr {res_addr:08x}] {res_data:08x} (wstrb=)")
+
+        wstrb = ['0', '0', '0', '0']
+        mem[res_addr >> 2] = 0
+        if res_com & 0x01:
+            mem[res_addr >> 2] |= (res_data & 0x000000ff)
+            wstrb[0] = '1'
+        if res_com & 0x02:
+            mem[res_addr >> 2] |= (res_data & 0x0000ff00)
+            wstrb[1] = '1'
+        if res_com & 0x04:
+            mem[res_addr >> 2] |= (res_data & 0x00ff0000)
+            wstrb[2] = '1'
+        if res_com & 0x08:
+            mem[res_addr >> 2] |= (res_data & 0xff000000)
+            wstrb[3] = '1'
+
+        wstrb_s = "".join(wstrb)
+        print(f"[wr {res_addr:08x}] {res_data:08x} (wstrb={wstrb_s})")
         ser.write(b'\xc8')
     elif res_com == 0x77:
         res_addr = int.from_bytes(addr, byteorder="little", signed=False)
@@ -47,3 +62,4 @@ while(mem[255] != 255):
     else:
         print("Bad command!");
 print(f"Completed in {time.time() - start}")
+ser.close()

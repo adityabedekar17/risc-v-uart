@@ -77,8 +77,7 @@ int main(int argc, char * argv[]){
       first = false;
     }
     if ((recv_buf[0] & 0xf0) == 0x20){
-      sp_blocking_read(port, recv_buf + 1, 4, 0);
-      sp_blocking_read(port, recv_buf + 5, 4, 0);
+      sp_blocking_read(port, recv_buf + 1, 8, 0);
       addr = bytes_to_word_le(&recv_buf[1]);
       data = bytes_to_word_le(&recv_buf[5]);
       memory[addr >> 2] = 0;
@@ -103,7 +102,6 @@ int main(int argc, char * argv[]){
       memcpy(wstrb, wstrb_init, 4);
       sp_blocking_write(port, &byte_ok, 1, 0);
     }
-    // read
     else if (recv_buf[0] == 0x77) {
       sp_blocking_read(port, recv_buf + 1, 4, 0);
       addr = bytes_to_word_le(&recv_buf[1]);
