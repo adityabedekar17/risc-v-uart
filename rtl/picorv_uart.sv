@@ -11,22 +11,18 @@ module picorv_uart #(
 
   wire [31:0] mem_addr, mem_wdata, mem_rdata;
   wire [3:0] mem_wstrb;
-  wire [0:0] mem_valid, mem_instr, mem_ready;
+  wire [0:0] mem_valid, mem_ready;
   picorv32 #(
   ) picorv_inst (
     .clk(clk_i),
     .resetn(~reset_i),
     .mem_valid(mem_valid),
-    .mem_instr(mem_instr),
     .mem_ready(mem_ready),
     .mem_addr(mem_addr),
     .mem_wdata(mem_wdata),
     .mem_wstrb(mem_wstrb),
     .mem_rdata(mem_rdata)
   );
-
-  // TODO figure out splitting memory regions for instructions and other
-  // in the compiler and picorv. Need to define uart memory regions?
 
   wire [31:0] uart_rd_data;
   wire [0:0] uart_rd_ready;

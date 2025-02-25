@@ -14,7 +14,9 @@ module picorv_uart_tb
     $timeformat( -3, 3, "ms", 0);
 
     runner.reset();
-    runner.repeat_mem(100);
+    while (1) begin
+      runner.repeat_mem(1);
+    end
 
     $display("End simulation.");
     $finish;  

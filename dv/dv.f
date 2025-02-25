@@ -6,6 +6,7 @@ third_party/alexforencich_uart/rtl/uart.v
 third_party/alexforencich_uart/rtl/uart_rx.v
 third_party/alexforencich_uart/rtl/uart_tx.v
 dv/uart_sender.sv
+src/elf_read.c
 
 dv/picorv_uart_tb.sv
 

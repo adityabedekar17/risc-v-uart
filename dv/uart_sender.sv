@@ -5,7 +5,10 @@ module uart_sender
   ,input [0:0] reset_i
   ,input [0:0] rx_i
   ,output [0:0] tx_o);
-    
+
+  import "DPI-C" function void load_elf(input string path);
+  import "DPI-C" function int get_word_addr(input int byte_addr);
+
   localparam [15:0] Prescale = 16'(ClkFreq / (BaudRate * 8));
 
   logic [7:0] s_axis_tdata;
@@ -38,12 +41,15 @@ module uart_sender
   initial begin
     // eventually move onto loading from hex, then to elf
 		// $readmemh(instr.hex, mem);
+    /*
     mem[0] = 32'h 3fc00093; //       li      x1,1020
     mem[1] = 32'h 0000a023; //       sw      x0,0(x1)
     mem[2] = 32'h 0000a103; // loop: lw      x2,0(x1)
     mem[3] = 32'h 00110113; //       addi    x2,x2,1
     mem[4] = 32'h 0020a023; //       sw      x2,0(x1)
     mem[5] = 32'h ff5ff06f; //       j       <loop>
+    */
+    load_elf("firmware/icesugar_fw.elf");
   end
 
   initial begin
@@ -96,13 +102,26 @@ module uart_sender
     @(posedge clk_i);
   endtask
 
+  int data_from_c;
   logic [31:0] addr, data;
   logic [7:0] command;
   task automatic process_request();
     recv_byte(command);
     if (command == 8'h77) begin
       recv_word(addr);
-      data = mem[8'(addr >> 2)];
+      // defined in firmware/sections.lds
+      // instr fetch if inside program, otherwise it is reading from stack
+      if (addr > 32'h00018000) begin
+        data = mem[addr >> 2];
+      end else begin
+        data_from_c = get_word_addr(addr >> 2);
+        data = data_from_c[31:0];
+        if (data == 32'h00100073) begin
+          $display("Received ebreak instr. End of program");
+          $finish();
+          $finish();
+        end
+      end
       send_word(data);
       $display("[rd 0x%08h] 0x%08h", addr, data);
     end else if (command[7:4] == 4'h2) begin

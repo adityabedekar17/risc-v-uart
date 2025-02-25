@@ -1,4 +1,4 @@
-// https://github.com/YosysHQ/picorv32/blob/main/firmware/sections.lds
+/* https://github.com/YosysHQ/picorv32/blob/main/firmware/sections.lds */
 
 MEMORY {
 	/* the memory in the testbench is 128k in size;
