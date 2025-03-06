@@ -7,6 +7,8 @@
 
 #include <libserialport.h>
 
+#include "elf_read.h"
+
 #define WORD_BYTES 4
 
 static uint32_t memory[256];
@@ -41,6 +43,10 @@ int main(int argc, char * argv[]){
     printf("Usage: %s <port> <file>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
+  
+  // argv[2]
+  load_elf("../firmware/icesugar_fw.elf");
+  free_mem();
 
   init_mem();
 

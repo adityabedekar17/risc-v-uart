@@ -8,3 +8,4 @@ build
 
 # binaries from src
 serialram
+elf_read.o

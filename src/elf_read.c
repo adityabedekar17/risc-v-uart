@@ -3,7 +3,9 @@
 #include <inttypes.h>
 #include <elf.h>
 
+#ifdef __cplusplus
 extern "C" {
+#endif
   static uint32_t *elf_program;
 
   void load_elf(const char *path){
@@ -37,4 +39,6 @@ extern "C" {
   void free_mem(void){
     free(elf_program);
   }
+#ifdef __cplusplus
 }
+#endif
