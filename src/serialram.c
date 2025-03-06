@@ -5,21 +5,15 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <map>
+
 #include <libserialport.h>
 
 #include "elf_read.h"
 
 #define WORD_BYTES 4
 
-static uint32_t memory[256];
-void init_mem(void){ 
-  memory[0] = 0x3fc00093;
-  memory[1] = 0x0000a023;
-  memory[2] = 0x0000a103;
-  memory[3] = 0x00110113;
-  memory[4] = 0x0020a023;
-  memory[5] = 0xff5ff06f;
-};
+//static uint32_t memory[256];
 
 uint32_t bytes_to_word_le(uint8_t buf[4]){
   uint32_t word = 0;
@@ -46,14 +40,12 @@ int main(int argc, char * argv[]){
   
   // argv[2]
   load_elf("../firmware/icesugar_fw.elf");
-  free_mem();
-
-  init_mem();
 
   struct sp_port *port;
-  enum sp_return ret;
+  //enum sp_return ret;
+  int ret;
 
-  ret = SP_OK;
+  ret = 0;
   ret |= sp_get_port_by_name(argv[1], &port);
   ret |= sp_open(port, SP_MODE_READ_WRITE);
   ret |= sp_set_baudrate(port, 115200);
@@ -73,10 +65,12 @@ int main(int argc, char * argv[]){
   uint8_t byte_ok = 0xc8;
   bool first = true;
   struct timespec start, end;
-  char wstrb[4];
-  char wstrb_init[] = {'0', '0', '0', '0'};
+  char wstrb[5];
+  char wstrb_init[] = {'0', '0', '0', '0', '\0'};
 
-  while(memory[255] != 255){
+  std::map<uint32_t, uint32_t> map_memory;
+
+  while(1){
     sp_blocking_read(port, recv_buf, 1, 0);
     if (first){
       clock_gettime(CLOCK_REALTIME, &start);
@@ -86,32 +80,50 @@ int main(int argc, char * argv[]){
       sp_blocking_read(port, recv_buf + 1, 8, 0);
       addr = bytes_to_word_le(&recv_buf[1]);
       data = bytes_to_word_le(&recv_buf[5]);
-      memory[addr >> 2] = 0;
+      uint32_t memory = 0;
+      //memory[addr >> 2] = 0;
       if (recv_buf[0] & 0x01){
-        memory[addr >> 2] |= (data & 0x000000ff);
+        //memory[addr >> 2] |= (data & 0x000000ff);
+        memory |= (data & 0x000000ff);
         wstrb[0] = '1';
       }
       if (recv_buf[0] & 0x02){
-        memory[addr >> 2] |= (data & 0x0000ff00);
+        //memory[addr >> 2] |= (data & 0x0000ff00);
+        memory |= (data & 0x0000ff00);
         wstrb[1] = '1';
       }
       if (recv_buf[0] & 0x04){
-        memory[addr >> 2] |= (data & 0x00ff0000);     
+        //memory[addr >> 2] |= (data & 0x00ff0000);     
+        memory |= (data & 0x00ff0000);     
         wstrb[2] = '1';
       }
       if (recv_buf[0] & 0x08){
-        memory[addr >> 2] |= (data & 0xff000000);
+        //memory[addr >> 2] |= (data & 0xff000000);
+        memory |= (data & 0xff000000);
         wstrb[3] = '1';
       }
-      memory[addr >> 2] = data;
+      map_memory.insert_or_assign(addr >> 2, memory);
+      //memory[addr >> 2] = data;
       printf("[wr %08x] %08x (wstrb=%s)\n", addr, data, wstrb);
-      memcpy(wstrb, wstrb_init, 4);
+      memcpy(wstrb, wstrb_init, 5);
       sp_blocking_write(port, &byte_ok, 1, 0);
     }
     else if (recv_buf[0] == 0x77) {
       sp_blocking_read(port, recv_buf + 1, 4, 0);
       addr = bytes_to_word_le(&recv_buf[1]);
-      data = memory[addr >> 2];
+      if (addr > 0x00018000) {
+        // within stack mem
+        //data = memory[addr >> 2];
+        data = map_memory[addr >> 2];
+      }
+      else {
+        // within instr mem
+        data = get_word_addr(addr >> 2);
+        if (data == 0x00100073){
+          printf("Received ebreak instr\n");
+          break;
+        }
+      }
       word_to_bytes_le(data, send_buf);
       printf("[rd %08x] %08x\n", addr, data);
       sp_blocking_write(port, send_buf, 4, 0);
