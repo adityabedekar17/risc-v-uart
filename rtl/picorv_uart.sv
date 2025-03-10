@@ -28,21 +28,23 @@ module picorv_uart #(
     .mem_rdata(mem_rdata)
   );
 
-  // HPDcache signals
-  hpdcache_req_t core_req;
-  hpdcache_rsp_t core_rsp;
-  logic core_req_valid, core_req_ready, core_req_abort;
-  logic [31:0] core_req_tag;
-  hpdcache_pma_t core_req_pma;
-  logic core_rsp_valid;
+  wire [31:0] uart_rd_data;
+  wire [0:0] uart_rd_ready;
 
-  // Cache adapter
-  picorv_cache_adapter #(
-    .hpdcache_req_t(hpdcache_req_t),
-    .hpdcache_rsp_t(hpdcache_rsp_t)
-  ) cache_adapter (
+  uart_ram #(
+    .ClkFreq(ClkFreq),
+    .BaudRate(BaudRate)
+  ) ur_inst (
     .clk_i(clk_i),
     .rst_ni(~reset_i),
+        .addr_i(mem_addr),
+    .wr_data_i(mem_wdata),
+    .rd_data_o(uart_rd_data),
+    .ready_o(uart_rd_ready)
+  );
+  
+  assign mem_rdata = uart_rd_data;
+  assign mem_ready = uart_rd_ready;
     
     // PicoRV32 interface
     .mem_valid_i(mem_valid),
@@ -61,7 +63,7 @@ module picorv_uart #(
     .core_req_pma_o(core_req_pma),
     .core_rsp_i(core_rsp),
     .core_rsp_valid_i(core_rsp_valid)
-  );
+  
 
   // HPDcache instance
   hpdcache #(
