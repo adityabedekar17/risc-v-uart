@@ -23,6 +23,21 @@ make icestorm_icesugar_program
 # flash/program the test board
 ```
 
+Firmware and controller:
+```
+inside src/:
+make
+./serialram <port> <elf file>
+# Handles the memory request over UART on a host computer. Requires libserialport
+
+python3 simple_uart.py
+# runs an older version of the UART memory controller
+
+inside firmware/:
+make
+# compiles firmware.c and start.S into an elf file for use with serialram
+```
+
 # Acknowledgements
 This project was based on 
 [verilog_template](https://github.com/sifferman/verilog_template/).
