@@ -1,17 +1,16 @@
 /* verilator lint_off PINMISSING */
 
 `timescale 1ns/1ps
-`include "hpdcache_pkg.svh"
+`include "hpdcache_typedef.svh"
 
-module picorv_uart #(
+module picorv_uart 
+import config_pkg::*; #(
   parameter ClkFreq = 12000000,
   parameter BaudRate = 115200)
   (input [0:0] clk_i
   ,input [0:0] reset_i
   ,input [0:0] rx_i
   ,output [0:0] tx_o);
-
-  import hpdcache_pkg::*;
 
   wire [31:0] mem_addr, mem_wdata, mem_rdata;
   wire [3:0] mem_wstrb;
@@ -30,6 +29,32 @@ module picorv_uart #(
 
   wire [31:0] uart_rd_data;
   wire [0:0] uart_rd_ready;
+
+  uart_ram #(
+    .ClkFreq(ClkFreq),
+    .BaudRate(BaudRate)
+  ) ur_inst (
+    .clk_i(clk_i),
+    .reset_i(reset_i),
+    .rx_i(rx_i),
+    .tx_o(tx_o),
+    .mem_valid_i(mem_valid),
+    .mem_wstrb_i(mem_wstrb),
+    .addr_i(mem_addr),
+    .wr_data_i(mem_wdata),
+    .rd_data_o(uart_rd_data),
+    .ready_o(uart_rd_ready)
+  );
+
+  assign mem_rdata = uart_rd_data;
+  assign mem_ready = uart_rd_ready;
+  // HPDcache signals
+  hpdcache_req_t core_req;
+  hpdcache_rsp_t core_rsp;
+  logic core_req_valid, core_req_ready, core_req_abort;
+  logic [31:0] core_req_tag;
+  hpdcache_pma_t core_req_pma;
+  logic core_rsp_valid;
 
   uart_ram #(
     .ClkFreq(ClkFreq),
@@ -70,7 +95,7 @@ module picorv_uart #(
     .HPDcacheCfg                     (HPDcacheCfg),
     .hpdcache_tag_t                  (hpdcache_tag_t),
     .hpdcache_req_t                  (hpdcache_req_t), 
-    .hpdcache_rsp_t                  (hpdcache_rsp_t),
+    .hpdcache_rsp_t                  (hpdcache_rsp_t)
     // ...other parameterization from hpdcache_pkg...
   ) hpdcache_i (
     .clk_i(clk_i),
