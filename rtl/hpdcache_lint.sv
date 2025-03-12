@@ -226,4 +226,4 @@ module hpdcache_lint
       .cfg_default_wb_i                   (1'b0)
   );
 
-endmodule  /* hpdcache_lint */
+endmodule

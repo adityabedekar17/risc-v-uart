@@ -26,87 +26,8 @@
 `include "hpdcache_typedef.svh"
 
 module hpdcache_wrapper
+  import config_pkg::*;
   import hpdcache_pkg::*;
-#(
-  localparam int unsigned HPDCACHE_NREQUESTERS = 1,
-
-  localparam hpdcache_pkg::hpdcache_user_cfg_t HPDcacheUserCfg = '{
-      nRequesters: HPDCACHE_NREQUESTERS,
-      paWidth: 32 //for 32-bit address space//56
-      wordWidth:32 // 64,
-      sets: 64,
-      ways: 8,
-      clWords: 8,
-      reqWords: 1,
-      reqTransIdWidth: 6,
-      reqSrcIdWidth: 3,
-      victimSel: hpdcache_pkg::HPDCACHE_VICTIM_RANDOM,
-      dataWaysPerRamWord: 2,
-      dataSetsPerRam: 64,
-      dataRamByteEnable: 1'b1,
-      accessWords: 8,
-      mshrSets: 32,
-      mshrWays: 2,
-      mshrWaysPerRamWord: 2,
-      mshrSetsPerRam: 32,
-      mshrRamByteEnable: 1'b1,
-      mshrUseRegbank: 1,
-      refillCoreRspFeedthrough: 1'b1,
-      refillFifoDepth: 2,
-      wbufDirEntries: 16,
-      wbufDataEntries: 8,
-      wbufWords: 4,
-      wbufTimecntWidth: 3,
-      rtabEntries: 4,
-      flushEntries: 4,
-      flushFifoDepth: 2,
-      memAddrWidth: 32, //56
-      memIdWidth: 6,
-      memDataWidth:256 //512,
-      wtEn: 1'b1,
-      wbEn: 1'b1
-  },
-
-  localparam hpdcache_pkg::hpdcache_cfg_t HPDcacheCfg = hpdcache_pkg::hpdcacheBuildConfig(
-      HPDcacheUserCfg
-  ),
-
-  localparam type hpdcache_mem_addr_t = logic [HPDcacheCfg.u.memAddrWidth-1:0],
-  localparam type hpdcache_mem_id_t = logic [HPDcacheCfg.u.memIdWidth-1:0],
-  localparam type hpdcache_mem_data_t = logic [HPDcacheCfg.u.memDataWidth-1:0],
-  localparam type hpdcache_mem_be_t = logic [HPDcacheCfg.u.memDataWidth/8-1:0],
-  localparam type hpdcache_mem_req_t =
-      `HPDCACHE_DECL_MEM_REQ_T(hpdcache_mem_addr_t, hpdcache_mem_id_t),
-  localparam type hpdcache_mem_resp_r_t =
-      `HPDCACHE_DECL_MEM_RESP_R_T(hpdcache_mem_id_t, hpdcache_mem_data_t),
-  localparam type hpdcache_mem_req_w_t =
-      `HPDCACHE_DECL_MEM_REQ_W_T(hpdcache_mem_data_t, hpdcache_mem_be_t),
-  localparam type hpdcache_mem_resp_w_t =
-      `HPDCACHE_DECL_MEM_RESP_W_T(hpdcache_mem_id_t),
-
-  localparam type hpdcache_tag_t = logic [HPDcacheCfg.tagWidth-1:0],
-  localparam type hpdcache_data_word_t = logic [HPDcacheCfg.u.wordWidth-1:0],
-  localparam type hpdcache_data_be_t = logic [HPDcacheCfg.u.wordWidth/8-1:0],
-  localparam type hpdcache_req_offset_t = logic [HPDcacheCfg.reqOffsetWidth-1:0],
-  localparam type hpdcache_req_data_t = hpdcache_data_word_t [HPDcacheCfg.u.reqWords-1:0],
-  localparam type hpdcache_req_be_t = hpdcache_data_be_t [HPDcacheCfg.u.reqWords-1:0],
-  localparam type hpdcache_req_sid_t = logic [HPDcacheCfg.u.reqSrcIdWidth-1:0],
-  localparam type hpdcache_req_tid_t = logic [HPDcacheCfg.u.reqTransIdWidth-1:0],
-  localparam type hpdcache_req_t =
-      `HPDCACHE_DECL_REQ_T(hpdcache_req_offset_t,
-                           hpdcache_req_data_t,
-                           hpdcache_req_be_t,
-                           hpdcache_req_sid_t,
-                           hpdcache_req_tid_t,
-                           hpdcache_tag_t),
-  localparam type hpdcache_rsp_t =
-      `HPDCACHE_DECL_RSP_T(hpdcache_req_data_t,
-                           hpdcache_req_sid_t,
-                           hpdcache_req_tid_t),
-
-  localparam type hpdcache_wbuf_timecnt_t = logic [HPDcacheCfg.u.wbufTimecntWidth-1:0]
-)
-
 (
   input  logic                        clk_i,
   input  logic                        rst_ni,
@@ -226,4 +147,4 @@ module hpdcache_wrapper
       .cfg_default_wb_i                   (1'b0)
   );
 
-endmodule  /* hpdcache_lint */
+endmodule
