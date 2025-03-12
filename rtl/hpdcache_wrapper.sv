@@ -25,15 +25,15 @@
  */
 `include "hpdcache_typedef.svh"
 
-module hpdcache_lint
+module hpdcache_wrapper
   import hpdcache_pkg::*;
 #(
   localparam int unsigned HPDCACHE_NREQUESTERS = 1,
 
   localparam hpdcache_pkg::hpdcache_user_cfg_t HPDcacheUserCfg = '{
       nRequesters: HPDCACHE_NREQUESTERS,
-      paWidth: 56,
-      wordWidth: 64,
+      paWidth: 32 //for 32-bit address space//56
+      wordWidth:32 // 64,
       sets: 64,
       ways: 8,
       clWords: 8,
@@ -60,9 +60,9 @@ module hpdcache_lint
       rtabEntries: 4,
       flushEntries: 4,
       flushFifoDepth: 2,
-      memAddrWidth: 56,
+      memAddrWidth: 32, //56
       memIdWidth: 6,
-      memDataWidth: 512,
+      memDataWidth:256 //512,
       wtEn: 1'b1,
       wbEn: 1'b1
   },
