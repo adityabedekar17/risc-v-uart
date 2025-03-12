@@ -3,6 +3,7 @@ TOP := picorv_uart_tb
 
 export BASEJUMP_STL_DIR := $(abspath third_party/basejump_stl)
 export YOSYS_DATDIR := $(shell yosys-config --datdir)
+export HPDCACHE_DIR := $(abspath third_party/hpdcache)
 
 RTL := $(shell \
  BASEJUMP_STL_DIR=$(BASEJUMP_STL_DIR) \
@@ -19,10 +20,18 @@ SV2V_ARGS := $(shell \
 bitstream: synth/icestorm_icesugar/build/icesugar.bin
 
 lint:
-	verilator lint/verilator.vlt -f rtl/rtl.f -f dv/dv.f --lint-only --top picorv_uart
+	verilator lint/verilator.vlt \
+		-f $(HPDCACHE_DIR)/rtl/hpdcache.Flist \
+		$(HPDCACHE_DIR)/rtl/src/common/macros/behav/*.sv \
+		-f rtl/rtl.f -f dv/dv.f \
+		--lint-only --top picorv_uart
 
 sim:
-	verilator lint/verilator.vlt --Mdir ${TOP}_$@_dir -f rtl/rtl.f -f dv/pre_synth.f -f dv/dv.f --binary -Wno-fatal --top ${TOP}
+	verilator lint/verilator.vlt --Mdir ${TOP}_$@_dir \
+		-f $(HPDCACHE_DIR)/rtl/hpdcache.Flist \
+		$(HPDCACHE_DIR)/rtl/src/common/macros/behav/*.sv \
+		-f rtl/rtl.f -f dv/pre_synth.f -f dv/dv.f \
+		--binary -Wno-fatal --top ${TOP}
 	./${TOP}_$@_dir/V${TOP} +verilator+rand+reset+2
 
 synth/build/rtl.sv2v.v: ${RTL} rtl/rtl.f

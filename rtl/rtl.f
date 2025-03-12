@@ -1,5 +1,4 @@
--Ithird_party/hpdcache/rtl/include/
-third_party/hpdcache/rtl/src/hpdcache_pkg.sv
+// Assumens hpdcache.Flist is imported first
 
 rtl/config_pkg.sv
 
@@ -11,5 +10,4 @@ third_party/alexforencich_uart/rtl/uart_rx.v
 third_party/alexforencich_uart/rtl/uart_tx.v
 third_party/picorv32/picorv32.v
 
-third_party/hpdcache/rtl/src/hpdcache.sv
 rtl/hpdcache_wrapper.sv
