@@ -21,8 +21,9 @@ import hpdcache_pkg::*;
       // 1 word per request
       reqWords: 1,
       // TODO figure out tid
-      reqTransIdWidth: 6,
-      reqSrcIdWidth: 3,
+      // tmp: only one source and one thread
+      reqTransIdWidth: 1,
+      reqSrcIdWidth: 1,
       // PLRU eviction strategy
       victimSel: hpdcache_pkg::HPDCACHE_VICTIM_PLRU,
       // TODO figure out difference between this and the sets above

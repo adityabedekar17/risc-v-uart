@@ -4,7 +4,9 @@
 `include "hpdcache_typedef.svh"
 
 module picorv_uart 
-import config_pkg::*; #(
+import config_pkg::*;
+import hpdcache_pkg::*;
+#(
   parameter ClkFreq = 12000000,
   parameter BaudRate = 115200)
   (input [0:0] clk_i
@@ -12,9 +14,13 @@ import config_pkg::*; #(
   ,input [0:0] rx_i
   ,output [0:0] tx_o);
 
-  wire [31:0] mem_addr, mem_wdata, mem_rdata;
+  wire [31:0] mem_addr, mem_wdata;
   wire [3:0] mem_wstrb;
-  wire [0:0] mem_valid, mem_ready;
+  wire [0:0] mem_valid;
+
+  logic [31:0] mem_rdata;
+  logic [0:0] mem_ready;
+
   picorv32 #(
   ) picorv_inst (
     .clk(clk_i),
@@ -28,7 +34,7 @@ import config_pkg::*; #(
   );
 
   wire [31:0] uart_rd_data;
-  wire [0:0] uart_rd_ready;
+  wire [0:0] uart_data_ready;
 
   uart_ram #(
     .ClkFreq(ClkFreq),
@@ -43,12 +49,9 @@ import config_pkg::*; #(
     .addr_i(mem_addr),
     .wr_data_i(mem_wdata),
     .rd_data_o(uart_rd_data),
-    .ready_o(uart_rd_ready)
+    .ready_o(uart_data_ready)
   );
 
-  assign mem_rdata = uart_rd_data;
-  assign mem_ready = uart_rd_ready;
-  
   logic [0:0]                   wbuf_flush;
   logic [0:0]                   wbuf_empty;
 
@@ -126,4 +129,49 @@ import config_pkg::*; #(
       wbuf_flush = 1'b0;
     end
   end
+
+`define PHYS_MEM_LIMIT 32'h20000
+
+  always_comb begin
+    core_req_valid[0] = mem_valid;
+
+    core_req[0].addr_offset = mem_addr[HPDcacheCfg.reqOffsetWidth - 1:0];
+    core_req[0].wdata = mem_wdata;
+    core_req[0].op = (|mem_wstrb) ?
+      HPDCACHE_REQ_STORE : HPDCACHE_REQ_LOAD;
+    core_req[0].be = mem_wstrb;
+    // request is 32-bits => 4 bytes => 2^2
+    core_req[0].size = 3'b10;
+    core_req[0].sid = 1'b1;
+    core_req[0].tid = 1'b1;
+    // assume this never aborts
+    core_req[0].need_rsp = 1'b1;
+    // only uses phys mem, not virtual
+    core_req[0].phys_indexed = 1'b1;
+    core_req[0].addr_tag = mem_addr[31:31 - HPDcacheCfg.tagWidth + 1];
+    // if addr is mmio
+    core_req[0].pma.uncacheable =
+      (mem_addr > `PHYS_MEM_LIMIT);
+    core_req[0].pma.io = core_req[0].pma.uncacheable;
+    core_req[0].pma.wr_policy_hint = HPDCACHE_WR_POLICY_WB;
+
+    core_tag[0] = mem_addr[31:31 - HPDcacheCfg.tagWidth + 1];
+
+    core_req_abort[0] = 1'b0;
+
+    // not using virtual, so don't care
+    core_pma[0] = '0;
+
+    mem_ready = core_rsp_valid[0];
+    mem_rdata = core_rsp[0].rdata;
+
+    // Don't care about these
+    /*
+    core_rsp[0].sid;
+    core_rsp[0].tid;
+    core_rsp[0].error;
+    core_rsp[0].aborted;
+    */
+  end
+  wire [0:0] __unused__ = {core_req_ready[0]};
 endmodule
