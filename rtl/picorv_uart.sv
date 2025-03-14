@@ -60,8 +60,8 @@ import hpdcache_pkg::*;
     .mem_req_write_data_i(mem_req_wdata),
     .mem_req_write_data_ready_o(mem_req_write_data_ready),
 
-    .mem_resp_w_valid_i(mem_resp_write_valid),
-    .mem_resp_w_ready_o(mem_resp_write_ready),
+    .mem_resp_w_ready_i(mem_resp_write_ready),
+    .mem_resp_w_valid_o(mem_resp_write_valid),
     .mem_resp_w_o(mem_resp_w)
   );
 
@@ -126,7 +126,7 @@ import hpdcache_pkg::*;
    .mem_req_write_o(mem_req_write),
 
    .mem_req_write_data_ready_i(mem_req_write_data_ready),
-   .mem_req_write_data_valid_o(mem_req_write_data_ready),
+   .mem_req_write_data_valid_o(mem_req_write_data_valid),
    .mem_req_write_data_o(mem_req_wdata),
 
    .mem_resp_write_ready_o(mem_resp_write_ready),
