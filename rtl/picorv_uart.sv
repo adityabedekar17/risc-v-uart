@@ -3,6 +3,8 @@
 `timescale 1ns/1ps
 `include "hpdcache_typedef.svh"
 
+`define PHYS_MEM_LIMIT 32'h20000
+
 module picorv_uart 
 import config_pkg::*;
 import hpdcache_pkg::*;
@@ -33,9 +35,6 @@ import hpdcache_pkg::*;
     .mem_rdata(mem_rdata)
   );
 
-  wire [31:0] uart_rd_data;
-  wire [0:0] uart_data_ready;
-
   uart_ram #(
     .ClkFreq(ClkFreq),
     .BaudRate(BaudRate)
@@ -44,12 +43,26 @@ import hpdcache_pkg::*;
     .reset_i(reset_i),
     .rx_i(rx_i),
     .tx_o(tx_o),
-    .mem_valid_i(mem_valid),
-    .mem_wstrb_i(mem_wstrb),
-    .addr_i(mem_addr),
-    .wr_data_i(mem_wdata),
-    .rd_data_o(uart_rd_data),
-    .ready_o(uart_data_ready)
+
+    .mem_req_read_valid_i(mem_req_read_valid),
+    .mem_req_read_i(mem_req_read),
+    .mem_req_read_ready_o(mem_req_read_ready),
+
+    .mem_resp_r_ready_i(mem_resp_read_ready),
+    .mem_resp_r_valid_o(mem_resp_read_valid),
+    .mem_resp_r_o(mem_resp_r),
+
+    .mem_req_write_valid_i(mem_req_write_valid),
+    .mem_req_write_i(mem_req_write),
+    .mem_req_write_ready_o(mem_req_write_ready),
+
+    .mem_req_write_data_valid_i(mem_req_write_data_valid),
+    .mem_req_write_data_i(mem_req_wdata),
+    .mem_req_write_data_ready_o(mem_req_write_data_ready),
+
+    .mem_resp_w_valid_i(mem_resp_write_valid),
+    .mem_resp_w_ready_o(mem_resp_write_ready),
+    .mem_resp_w_o(mem_resp_w)
   );
 
   logic [0:0]                   wbuf_flush;
@@ -122,17 +135,6 @@ import hpdcache_pkg::*;
   );
 
   always_comb begin
-    // if instr was ebreak
-    if (uart_rd_data == 32'h00100073) begin
-      wbuf_flush = 1'b1;
-    end else begin
-      wbuf_flush = 1'b0;
-    end
-  end
-
-`define PHYS_MEM_LIMIT 32'h20000
-
-  always_comb begin
     core_req_valid[0] = mem_valid;
 
     core_req[0].addr_offset = mem_addr[HPDcacheCfg.reqOffsetWidth - 1:0];
@@ -173,5 +175,6 @@ import hpdcache_pkg::*;
     core_rsp[0].aborted;
     */
   end
+
   wire [0:0] __unused__ = {core_req_ready[0]};
 endmodule
