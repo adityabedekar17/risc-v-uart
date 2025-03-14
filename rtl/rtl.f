@@ -1,10 +1,9 @@
-// Assumens hpdcache.Flist is imported first
+// Assumes hpdcache.Flist is imported first
 
 rtl/config_pkg.sv
 
 rtl/picorv_uart.sv
 rtl/uart_ram.sv
-rtl/ram_1r1w_sync.sv
 third_party/alexforencich_uart/rtl/uart.v
 third_party/alexforencich_uart/rtl/uart_rx.v
 third_party/alexforencich_uart/rtl/uart_tx.v

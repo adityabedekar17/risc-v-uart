@@ -15,6 +15,10 @@ SV2V_ARGS := $(shell \
  python3 misc/convert_filelist.py sv2v rtl/rtl.f \
 )
 
+HPDCACHE_FILES=$(shell grep '.*.sv' $(HPDCACHE_DIR)/rtl/hpdcache.Flist)
+SV2V_ARGS += ${HPDCACHE_FILES}
+SV2V_ARGS += -I$(HPDCACHE_DIR)/rtl/include
+
 .PHONY: lint sim gls icestorm_icesugar_gls icestorm_icesugar_program icestorm_icesugar_flash clean
 
 bitstream: synth/icestorm_icesugar/build/icesugar.bin
@@ -34,7 +38,7 @@ sim:
 		--binary -Wno-fatal --top ${TOP}
 	./${TOP}_$@_dir/V${TOP} +verilator+rand+reset+2
 
-synth/build/rtl.sv2v.v: ${RTL} rtl/rtl.f
+synth/build/rtl.sv2v.v: ${RTL} ${CACHE} rtl/rtl.f
 	mkdir -p $(dir $@)
 	sv2v ${SV2V_ARGS} -w $@ -DSYNTHESIS
 
