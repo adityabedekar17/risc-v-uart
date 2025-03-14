@@ -28,7 +28,7 @@ import hpdcache_pkg::*;
       victimSel: hpdcache_pkg::HPDCACHE_VICTIM_PLRU,
       // TODO figure out difference between this and the sets above
       dataWaysPerRamWord: 2,
-      dataSetsPerRam: 64,
+      dataSetsPerRam: 64,// should match sets per RAM bank
       // enable byte enable masking instead of bit masking
       dataRamByteEnable: 1'b1,
       // How many simultaneous accesses are allowed from the cache
@@ -53,7 +53,7 @@ import hpdcache_pkg::*;
       // uart expects 32 bits address
       memAddrWidth: 32,
       // TODO figure out mem id
-      memIdWidth: 6,
+      memIdWidth: 1,// was 6 // for PicoRV32 , we only need to track read and write
       // uart expects 32 bits of data
       memDataWidth: 32,
       // don't write through, but write back
