@@ -15,14 +15,14 @@ import hpdcache_pkg::*;
       wordWidth: 32,
       // 64 sets * 8 ways * 8 words * 32 bits/word = 131072 bits of cache
       // which is exactly the amount of bram available on the ice40up5k
-      sets: 64,
+      sets: 64,// for iCE40up5k BRAM size
       ways: 8,
       clWords: 8,
       // 1 word per request
       reqWords: 1,
       // TODO figure out tid
       // tmp: only one source and one thread
-      reqTransIdWidth: 1,
+      reqTransIdWidth: 4,// upto 16 outstanding transactions, earlier 6
       reqSrcIdWidth: 1,
       // PLRU eviction strategy
       victimSel: hpdcache_pkg::HPDCACHE_VICTIM_PLRU,
@@ -35,7 +35,7 @@ import hpdcache_pkg::*;
       // since there are 4 separate bram modules each containing 16 bits,
       // I will try 2 simultaneout accesses
       accessWords: 2,
-      mshrSets: 32,
+      mshrSets: 4,// one per pipeline stage, earlier 32
       mshrWays: 2,
       mshrWaysPerRamWord: 2,
       mshrSetsPerRam: 32,
@@ -43,8 +43,8 @@ import hpdcache_pkg::*;
       mshrUseRegbank: 1,
       refillCoreRspFeedthrough: 1'b1,
       refillFifoDepth: 2,
-      wbufDirEntries: 16,
-      wbufDataEntries: 8,
+      wbufDirEntries: 8,// support multiple outstanding writes; was 16
+      wbufDataEntries: 4,// half directory entries
       wbufWords: 4,
       wbufTimecntWidth: 3,
       rtabEntries: 4,
@@ -53,12 +53,20 @@ import hpdcache_pkg::*;
       // uart expects 32 bits address
       memAddrWidth: 32,
       // TODO figure out mem id
-      memIdWidth: 1,// was 6 // for PicoRV32 , we only need to track read and write
-      // uart expects 32 bits of data
-      memDataWidth: 32,
+      memIdWidth: 4,//// match reqtransidwidth was 6 
+      memDataWidth: 32,// picorv32
       // don't write through, but write back
       wtEn: 1'b0,
       wbEn: 1'b1
+      /*writeback policy options.
+      wten=1'b0; disable write through
+      wbEn=1'b1; enable write back only
+      
+      wtEn: 1'b1; write through
+      wbEn: 1'b0; disable write back
+      
+      
+      */
   };
 
   localparam hpdcache_pkg::hpdcache_cfg_t HPDcacheCfg = hpdcache_pkg::hpdcacheBuildConfig(
