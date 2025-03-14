@@ -67,7 +67,7 @@ module uart_ram
   localparam [15:0] Prescale = 16'(ClkFreq / (BaudRate * 8));
 
   typedef enum {
-    Idle, SendCommand, SendLen, SendAddr, WaitData, RecvData
+    Idle, SendCommand, SendLen, SendAddr, WaitData, RecvData, WaitReady
   } uart_state_e;
 
   // operation of the request
@@ -97,6 +97,8 @@ module uart_ram
     // sending bytes
     s_axis_tdata = 8'h00;
     s_axis_tvalid = 1'b0;
+
+    m_axis_tready = 1'b1;
 
     // ready valid signals
     mem_req_ready = 1'b0;
@@ -134,7 +136,7 @@ module uart_ram
           // register the read request
           req_addr_d = mem_req_read_i.mem_req_addr;
           req_len_d = mem_req_read_i.mem_req_len;
-          req_size_d = (1 << mem_req_read_i.mem_req_size) - 1;
+          req_size_d = (1 << mem_req_read_i.mem_req_size) - 1'b1;
           req_id_d = mem_req_read_i.mem_req_id;
           req_reg_en = 1'b1;
 
@@ -147,7 +149,7 @@ module uart_ram
           // register the write request
           req_addr_d = mem_req_write_i.mem_req_addr;
           req_len_d = mem_req_write_i.mem_req_len;
-          req_size_d = (1 << mem_req_write_i.mem_req_size) - 1;
+          req_size_d = (1 << mem_req_write_i.mem_req_size) - 1'b1;
           req_id_d = mem_req_write_i.mem_req_id;
           req_op_d = OP_WRITE;
           req_reg_en = 1'b1;
@@ -210,19 +212,24 @@ module uart_ram
           data_reg_en = 1'b1;
           byte_cnt_up = 1'b1;
           if (byte_cnt_q == req_size_q) begin
-            transfer_cnt_up = 1'b1;
-            uart_state_d = Idle;
-
-            mem_resp_r.mem_resp_r_error = HPDCACHE_MEM_RESP_OK;
-            mem_resp_r.mem_resp_r_id = req_id_q;
-            mem_resp_r.mem_resp_r_data = {m_axis_tdata, data_q};
-            mem_resp_r.mem_resp_r_last = 1'b0;
-
-            // move to the next word if necessary
-            req_addr_d = req_addr_q + 32'd4;
-
-            mem_resp_r_valid = 1'b1;
+            uart_state_d = WaitReady;
           end
+        end
+      end
+      WaitReady: begin
+        mem_resp_r_valid = 1'b1;
+
+        mem_resp_r.mem_resp_r_error = HPDCACHE_MEM_RESP_OK;
+        mem_resp_r.mem_resp_r_id = req_id_q;
+        mem_resp_r.mem_resp_r_data = data_q;
+        mem_resp_r.mem_resp_r_last = (transfer_cnt_q == req_len_q);
+
+        if (mem_resp_r_ready_i) begin
+          transfer_cnt_up = 1'b1;
+          uart_state_d = (transfer_cnt_q == req_len_q) ?
+            Idle : SendAddr;
+          // move to the next word if necessary
+          req_addr_d = req_addr_q + 32'd4;
         end
       end
     endcase
@@ -272,7 +279,7 @@ module uart_ram
     end
   end
 
-  logic [23:0] data_q;
+  logic [31:0] data_q;
   always_ff @(posedge clk_i) begin
     if (reset_i) begin
       data_q <= '0;
@@ -282,6 +289,8 @@ module uart_ram
       data_q[15:8] <= m_axis_tdata;
     end else if (data_reg_en & (byte_cnt_q == 2'h2)) begin
       data_q[23:16] <= m_axis_tdata;
+    end else if (data_reg_en & (byte_cnt_q == 2'h3)) begin
+      data_q[31:24] <= m_axis_tdata;
     end
   end
 
@@ -305,6 +314,7 @@ module uart_ram
   assign mem_req_write_ready_o = mem_req_ready;
 
   assign mem_resp_r_o = mem_resp_r;
+  assign mem_resp_r_valid_o = mem_resp_r_valid;
 
   wire [7:0] m_axis_tdata;
   wire [0:0] s_axis_tready, m_axis_tvalid;

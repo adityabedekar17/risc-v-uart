@@ -65,7 +65,7 @@ import hpdcache_pkg::*;
     .mem_resp_w_o(mem_resp_w)
   );
 
-  logic [0:0]                   wbuf_flush;
+  wire  [0:0]                   wbuf_flush;
   logic [0:0]                   wbuf_empty;
 
   logic [0:0]                   core_req_valid[HPDCACHE_NREQUESTERS];
@@ -176,5 +176,6 @@ import hpdcache_pkg::*;
     */
   end
 
-  wire [0:0] __unused__ = {core_req_ready[0]};
+  wire [1:0] __unused__ = {core_req_ready[0], wbuf_empty};
+  assign wbuf_flush = 1'b1;
 endmodule
