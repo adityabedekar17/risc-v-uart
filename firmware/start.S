@@ -41,7 +41,7 @@ start:
 	lui sp,(128*1024)>>12
 
 	/* call count C code */
-	jal ra,count
+	jal ra,sort
 
 	/* trap */
 	ebreak
